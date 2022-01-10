@@ -1,0 +1,90 @@
+'''
+For formatting and exporting the data returned by the webscraping script
+'''
+import pandas as pd
+from pandas.core.frame import DataFrame
+
+'''
+- There is an issue with the details area since on the webpage the actual details are outside of the <i> tag
+Something that I'll need to try and figure out later
+- Need to add weightclass to this somehow 
+'''
+#Return a dataframe of the fight details of a single fight
+def fightDetails_df(soup):
+    fightDetails = soup.find("div", class_="b-fight-details__fight")
+
+    #Renaming tags
+    tagsToChange = fightDetails.find_all("i", class_="b-fight-details__text-item_first")
+    for newTag in tagsToChange:
+        newTag['class'] = 'b-fight-details__text-item'
+    
+    #retriving all the fight details
+    details = fightDetails.find_all("i", class_="b-fight-details__text-item")
+    list = [] 
+    for d in details:
+        item = d.get_text()
+        item = item.replace('\n', '')
+        item = item.replace(' ', '')
+        item = item.split(":")
+        list.append(item)
+    
+    #creating the dataframe
+    dict = {'Method': list[0][1], 
+            'Round': list[1][1], 
+            'Time-minutes': list[2][1], 
+            'Time-seconds': list[2][2],
+            'Timeformat': list[3][1], 
+            'Referee': list[4][1], 
+            'Details': list[5][1]}
+    df = pd.DataFrame(dict, index=[0])
+    return df
+
+#Return a dataframe of the fight statistics of a single fight
+def fightStatistics_df(soup):
+    tables = soup.find_all("table", style="width: 745px")
+
+    #get a list of statistics for each fighter from their fight
+    list = []
+    for table in tables:
+        stats = table.find_all("p")
+        for stat in stats:
+            item = stat.get_text()
+            item = item.replace('\n', '')
+            item = item.replace(' ', '')
+            list.append(item)
+    
+    #creating the dataframe
+    dict = {'Red Corner': list[0], 
+            'Blue Corner': list[1], 
+            'Red Knockdowns': list[2],
+            'Blue Knockdowns': list[3],
+            'Red Significant Strikes': list[4],
+            'Blue Significant Strikes': list[5],
+            'Red Significant Strike Accuracy': list[6],
+            'Blue Significant Strike Accuracy': list[7],
+            'Red Total Strikes': list[8],
+            'Blue Total Strikes': list[9],
+            'Red TakeDowns': list[10],
+            'Blue TakeDowns': list[11],
+            'Red TakeDown Percentage': list[12],
+            'Blue TakeDown Percentage': list[13],
+            'Red Submission Attacks': list[14],
+            'Blue Submission Attacks': list[15],
+            'Red Reversals': list[16],
+            'Blue Reversals': list[17],
+            'Red Control Time': list[18],
+            'Blue Control Time': list[19],
+            'Red Sig. Str. Head': list[26],
+            'Blue Sig. Str. Head': list[27],
+            'Red Sig. Str. Body': list[28],
+            'Blue Sig. Str. Body': list[29],
+            'Red Sig. Str. Legs': list[30],
+            'Blue Sig. Str. Legs': list[31],
+            'Red Sig. Str. Distance': list[32],
+            'Blue Sig. Str. Distance': list[33],
+            'Red Sig. Str. Clinch': list[34],
+            'Blue Sig. Str. Clinch': list[35],
+            'Red Sig. Str. Ground': list[36],
+            'Blue Sig. Str. Ground': list[37]}
+    df = pd.DataFrame(dict, index=[0])
+    return df
