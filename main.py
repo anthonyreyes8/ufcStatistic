@@ -3,84 +3,75 @@ For now i will not be including per round stats just the fight totals,
 I'll save this step as a potential future improvement on the model 
 
 notes:
+might need to make another scraper for the 
 
 '''
-
-#imports 
 import requests
 from bs4 import BeautifulSoup
-import csv
+import dataframeEditor as de 
 import pandas as pd
 
-# file = open('ufcData.csv', 'wb')
-# writer = csv.writer(file)
-# writer.writerow([Fighter, Knockdown, Significant Strikes Thrown, Significant Strikes Landed, Total Stirkes, Takedown Attempts, Takedown Percentage, Submissions Attacked, Reversal, Control Time])
+#For creating new beautiful soup objects from the links
+def createSoupFromLink(link):
+	try:
+		if link is not None:
+			linkForNewSoup = requests.get(link).text
+			newSoup = BeautifulSoup(linkForNewSoup, 'lxml')
+			return newSoup
+	except AttributeError:
+		print("Error with the href thingy")
 
-#soup object for list of fight cards 
-source = requests.get("http://ufcstats.com/statistics/events/completed?page=all").text
-soup = BeautifulSoup(source, 'lxml')
+def getStatistics(linkToStatistics):
+	soup = createSoupFromLink(linkToStatistics)
+	fd_df = de.fightDetails_df(soup)
+	fs_df = de.fightStatistics_df(soup)
+	#merging the dataframes
+	df = fd_df.join(fs_df)
+	return df
 
-#find all table rows with links to fight statistics
-# for link in soup.find_all("a", class_="b-link b-link_style_black"):
-# 	print(link)
+#Returns the links to each fight so that statistics can be scraped
+def getCard(linkToCard):
+	soup = createSoupFromLink(linkToCard)
+	#there is another table on the next page
+	table =	soup.find("tbody")
+	rows = table.find_all("tr")
+	frames = []
+	for row in rows:
+		link = row.find("a")
+		statistics = getStatistics(link)
+		#statistics returns the single df now I need to combine all of them
+		frames.append(statistics)
 
-link = soup.find("a", class_="b-link b-link_style_black")
-if link.has_attr('href'):
-# 	#print(link['href'])
-	pass
+	#from the list of dataframes we can merge them all together
+	df = pd.concat(frames)
+	return df
 
-#soup object for each fight card
-fightCardPage = requests.get(link['href']).text
-fightCardSoup = BeautifulSoup(fightCardPage, 'lxml')
+#Loop through each ufc event returning the statistics for each card
+def getEventStatistics(soupObject):
+	table = soupObject.find("tbody")
+	a_tag = table.find_all("a", class_="b-link b-link_style_black", href=True)
+	frames = []
+	for a in a_tag:
+		if a.has_attr('href'):
+			linkToCard = a['href']
+			fightCard_df = getCard(linkToCard)
+			frames.append(fightCard_df)
+	
+	#Dataframe for all fight cards is the concationation of all of the dataframes
+	master_df = pd.concat(frames)
+	return master_df
 
-dataLink = fightCardSoup.find("a", class_="b-flag b-flag_style_green")
-if dataLink.has_attr('href'):
-	#print(dataLink['href'])
-	pass
+#main function	
+def main():
+	#setting up the soup object
+	StatisticsSource = requests.get("http://ufcstats.com/statistics/events/completed?page=all").text
+	StatisticsSoup = BeautifulSoup(StatisticsSource, 'lxml')
+	getEventStatistics(StatisticsSoup)
+	master_dataframe = getEventStatistics(StatisticsSoup)
+	master_dataframe.to_csv()
 
-#soup object for fight statistics
-fightStatPage = requests.get(dataLink['href']).text
-fightStatSoup = BeautifulSoup(fightStatPage, 'lxml')
-
-#return match details 
-method = fightStatSoup.find("i", class_="b-fight-details__text-item_first").contents[3].get_text().strip()
-details = fightStatSoup.find("i", class_="b-fight-details__text-item")
-roundNumEnd = details.get_text()
-timeEnd = details.next_sibling.next_sibling.get_text()
-timeFormat = details.next_sibling.next_sibling.next_sibling.next_sibling.get_text()
-
-#getting a series with the values that we want
-s1 = pd.Series([roundNumEnd, timeEnd, timeFormat])
-s1 = s1.astype(str)
-s1 = s1.str.strip(' \n')
-s1 = s1.str.split('\n').str.get(2)
-s2 = pd.Series([method])
-s = s1.append(s2, ignore_index=True)
-
-df1 = pd.DataFrame(s)
-# print(df1)
-
-#return fights statistics 
-table = fightStatSoup.tbody.tr
-rows = []
-for stats in table.children:
-	row = []
-	for p in stats:
-		try:
-			row.append(p.text.replace('\n', ''))
-		except:
-			continue
-	if len(row) > 0:
-		rows.append(row)
-
-df2 = pd.DataFrame(rows[1:], columns = rows[0])
-print(df2)
-
-#switch into 1 single row 
-
-#add column to get name
-
-# file.close()
+if __name__ == "__main__":
+	main()
 
 
 
