@@ -1,6 +1,3 @@
-'''
-For formatting and exporting the data returned by the webscraping script
-'''
 import pandas as pd
 from pandas.core.frame import DataFrame
 
